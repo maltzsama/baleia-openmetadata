@@ -26,7 +26,7 @@ classifiers = [
 # connector runs inside OpenMetadata's ingestion image, which already pins the
 # version that matches the server. Declaring it here would let pip replace that
 # version. Install the `ingestion` extra only outside the image.
-dependencies = []
+dependencies = ["requests>=2.28"]
 
 [project.optional-dependencies]
 ingestion = ["openmetadata-ingestion>=2.0,<3"]
@@ -38,7 +38,9 @@ Baleia = "https://github.com/maltzsama/baleia"
 
 [dependency-groups]
 lint = ["ruff>=0.8"]
-test = ["pytest>=8"]
+# openmetadata-ingestion 2.0.x imports pytz without declaring it; the
+# ingestion image ships it, a plain virtualenv does not.
+test = ["pytest>=8", "pytz"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/baleia_openmetadata"]
