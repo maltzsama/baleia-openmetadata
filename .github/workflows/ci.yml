@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv run --only-group lint ruff check .
+      - run: uv run --only-group lint ruff format --check .
+
+  test:
+    # The connector runs inside OpenMetadata's ingestion image, so it is tested
+    # against each supported openmetadata-ingestion release, not a range.
+    name: Test (Python ${{ matrix.python }}, OpenMetadata ${{ matrix.openmetadata }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.10", "3.11"]
+        openmetadata: ["2.0.9.0", "2.1.0.2"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install
+        run: |
+          uv venv
+          uv pip install -e . "openmetadata-ingestion==${{ matrix.openmetadata }}" --group test
+      - run: uv run --no-sync pytest
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10
+      - run: uv build
+      - run: uvx twine check --strict dist/*

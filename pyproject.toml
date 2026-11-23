@@ -1,0 +1,54 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "baleia-openmetadata"
+version = "0.0.0"
+description = "OpenMetadata ingestion connector that discovers Baleia's semantic catalog"
+readme = "README.md"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+requires-python = ">=3.10"
+authors = [{ name = "Baleia contributors" }]
+keywords = ["openmetadata", "baleia", "semantic-layer", "data-catalog", "connector"]
+classifiers = [
+  "Development Status :: 2 - Pre-Alpha",
+  "Intended Audience :: Developers",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Database",
+  "Typing :: Typed",
+]
+# openmetadata-ingestion is deliberately not a runtime dependency: the
+# connector runs inside OpenMetadata's ingestion image, which already pins the
+# version that matches the server. Declaring it here would let pip replace that
+# version. Install the `ingestion` extra only outside the image.
+dependencies = []
+
+[project.optional-dependencies]
+ingestion = ["openmetadata-ingestion>=2.0,<3"]
+
+[project.urls]
+Homepage = "https://github.com/maltzsama/baleia-openmetadata"
+Issues = "https://github.com/maltzsama/baleia-openmetadata/issues"
+Baleia = "https://github.com/maltzsama/baleia"
+
+[dependency-groups]
+lint = ["ruff>=0.8"]
+test = ["pytest>=8"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/baleia_openmetadata"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

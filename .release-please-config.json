@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/googleapis/release-please/main/schemas/config.json",
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "package-name": "baleia-openmetadata",
+      "initial-version": "0.1.0",
+      "bump-minor-pre-major": true,
+      "extra-files": ["src/baleia_openmetadata/__init__.py"]
+    }
+  },
+  "changelog-sections": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "docs", "section": "Documentation" },
+    { "type": "chore", "section": "Miscellaneous" },
+    { "type": "refactor", "section": "Miscellaneous" },
+    { "type": "perf", "section": "Miscellaneous" },
+    { "type": "test", "section": "Miscellaneous" }
+  ]
+}
