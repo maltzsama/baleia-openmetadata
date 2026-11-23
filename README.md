@@ -84,9 +84,33 @@ RUN pip install --no-cache-dir "baleia-openmetadata==<version>"
 already pins the version that matches the server, and the connector must not
 replace it. Outside the image, install `baleia-openmetadata[ingestion]`.
 
-Then, in OpenMetadata, add a service under **Dashboard Services → Add New
-Service → Custom** and set the source Python class name documented in the first
-release.
+## Configuration
+
+In OpenMetadata, add a service under **Dashboard Services → Add New Service →
+Custom**, one per Baleia workspace, with:
+
+- **Source Python Class Name**: `baleia_openmetadata.source.BaleiaSource`
+- **Connection Options**:
+
+| Option | Required | Value |
+|---|---|---|
+| `baleiaUrl` | yes | Origin of Baleia's BI gateway, the same host and port as the Trino connector's (`https://bi.example.com:8443`) |
+| `biKeyEmail` | yes | E-mail of the BI key's owner (the Trino connector's username) |
+| `biKey` | no | The workspace BI key. Prefer leaving it out and setting `BALEIA_BI_KEY` in the ingestion environment: OpenMetadata stores connection options as plain strings, not as secrets. When the connector registers the service itself (a CLI or YAML run), it omits `biKey`; a value typed in the UI is stored by OpenMetadata as entered |
+| `trinoServiceNames` | yes | Comma-separated OpenMetadata database services that ingest the same workspace through the gateway; lineage is resolved against them |
+| `allowHttp` | no | `true` to accept a plain `http` URL. Internal networks only: the BI key is a password |
+| `verifyTls` | no | `false` to skip certificate verification. Tests only |
+| `timeoutSeconds` | no | Request timeout, default `30` |
+
+The BI key's workspace is the service's workspace, and the catalog is what the
+key's owner can see in it. One workspace BI key serves both the Trino connector
+and this one. Revoking it, or turning BI off for the workspace, stops both.
+
+Requests that fail with HTTP 429, 502, 503 or 504, or that cannot connect, are
+retried up to three times with bounded backoff, honoring `Retry-After` in seconds
+or as an HTTP date. A page cursor that does not advance stops the run. A refused key, an unsupported
+semantic catalog contract version, or a Baleia without the semantic catalog
+routes fails the run with an explicit message, which never includes the key.
 
 ## Development
 
