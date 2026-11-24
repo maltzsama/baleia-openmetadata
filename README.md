@@ -101,10 +101,42 @@ Custom**, one per Baleia workspace, with:
 | `allowHttp` | no | `true` to accept a plain `http` URL. Internal networks only: the BI key is a password |
 | `verifyTls` | no | `false` to skip certificate verification. Tests only |
 | `timeoutSeconds` | no | Request timeout, default `30` |
+| `dataModelType` | no | OpenMetadata data model type of Baleia models, default `LookMlView` (see below) |
 
 The BI key's workspace is the service's workspace, and the catalog is what the
 key's owner can see in it. One workspace BI key serves both the Trino connector
 and this one. Revoking it, or turning BI off for the workspace, stops both.
+
+## What a run creates
+
+| Baleia | OpenMetadata | Name |
+|---|---|---|
+| Semantic model | `DashboardDataModel` under the service | the model's slug (`<service>.model.<slug>`) |
+| Model dimension | data model column, typed from Baleia's logical type | the dimension's name |
+| Model metric | data model column (`NUMBER`) and a `Metric` with the SQL Baleia compiles for it | `<service>__<model slug>__<metric name>` |
+| Standalone metric | `Metric` with its rendered SQL | `<service>__<metric slug>` |
+
+Names come from slugs, never from labels users edit, so they are stable across
+runs, and a run with no change in Baleia changes nothing in OpenMetadata.
+`Metric` is a global entity in OpenMetadata, which is why metric names carry the
+service name. Labels become display names, and descriptions are copied.
+
+Baleia's logical types map to column types as follows: `boolean` → `BOOLEAN`,
+`int64` → `BIGINT`, `float64` → `DOUBLE`, `string` → `STRING`, `date` →
+`DATE`, `timestamp` → `TIMESTAMP`, `timestamptz` → `TIMESTAMPZ`, `binary` →
+`BINARY`, `json` → `JSON`; any other type becomes `UNKNOWN`, with the Baleia
+type kept as the display type.
+
+**Data model type.** OpenMetadata has no Baleia data model type yet. Until it
+does, models use `LookMlView`: a LookML view is the closest concept (dimensions
+and measures over a table or SQL), and the value exists in every supported
+release. Set `dataModelType` to any other value of OpenMetadata's
+`DataModelType` to change it.
+
+A model or metric that cannot be mapped is reported as an error in the run
+status and the rest of the run continues.
+
+## Errors and retries
 
 Requests that fail with HTTP 429, 502, 503 or 504, or that cannot connect, are
 retried up to three times with bounded backoff, honoring `Retry-After` in seconds
