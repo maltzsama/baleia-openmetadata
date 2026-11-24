@@ -4,9 +4,9 @@ An [OpenMetadata](https://open-metadata.org) ingestion connector that discovers
 the semantic catalog of [Baleia](https://github.com/maltzsama/baleia): its
 semantic models and metrics, with lineage to the physical tables behind them.
 
-> **Status: pre-alpha.** This repository is being bootstrapped. The connector
-> is not functional yet; the work is tracked in this repository's issues and in
-> Baleia's epic [maltzsama/baleia#1124](https://github.com/maltzsama/baleia/issues/1124).
+> **Status: alpha.** The connector ingests Baleia's semantic models and metrics
+> with their lineage. It is tracked in Baleia's epic
+> [maltzsama/baleia#1124](https://github.com/maltzsama/baleia/issues/1124).
 
 ## Why a dedicated connector
 
@@ -63,10 +63,13 @@ type.
 
 | baleia-openmetadata | OpenMetadata / `openmetadata-ingestion` | Python |
 |---|---|---|
-| unreleased | 2.0.x, 2.1.x | 3.11, 3.12, 3.13, 3.14 |
+| 0.1.x | 2.0.9 / 2.0.9.0, 2.1.0 / 2.1.0.2 | 3.11, 3.12, 3.13, 3.14 |
 
 The connector is tested against each supported `openmetadata-ingestion`
-release. Install the connector release that lists your OpenMetadata version.
+release and, nightly, against a running server of each release. It needs a
+Baleia that serves the semantic catalog routes on its BI gateway (Baleia ADR
+0030, contract version 1). Install the connector release that lists your
+OpenMetadata version.
 
 The connector runs inside OpenMetadata's ingestion environment, so its Python
 range follows OpenMetadata's:
@@ -80,19 +83,37 @@ range follows OpenMetadata's:
 
 ## Installation
 
-The package is published on PyPI as `baleia-openmetadata`. It must be installed
-in the Python environment that runs OpenMetadata's ingestion, usually the
-`openmetadata/ingestion` image that matches your server version:
+The package is published on PyPI as `baleia-openmetadata`. Install it in the
+Python environment that runs OpenMetadata's ingestion, usually the
+`openmetadata/ingestion` image that matches your server.
+[`docker/Dockerfile`](docker/Dockerfile) does that:
+
+```sh
+docker build --build-arg OPENMETADATA_VERSION=2.1.0 -t my-ingestion:2.1.0 docker/
+```
 
 ```dockerfile
-FROM openmetadata/ingestion:2.1.0.2
+ARG OPENMETADATA_VERSION=2.1.0
+FROM docker.getcollate.io/openmetadata/ingestion:${OPENMETADATA_VERSION}
 USER airflow
-RUN pip install --no-cache-dir "baleia-openmetadata==<version>"
+RUN pip install --no-cache-dir "baleia-openmetadata==0.1.*"
 ```
+
+Then run OpenMetadata with that image instead of the stock one, in Docker
+Compose or Kubernetes. `scripts/check-image.sh <version>` builds the image from
+a local wheel and proves the install: `openmetadata-ingestion` keeps the
+image's version and the source class loads.
 
 `openmetadata-ingestion` is intentionally not a runtime dependency. The image
 already pins the version that matches the server, and the connector must not
 replace it. Outside the image, install `baleia-openmetadata[ingestion]`.
+
+### Run order
+
+1. Ingest the workspace's physical metadata with OpenMetadata's **Trino**
+   connector through Baleia's BI gateway (see Baleia's operations guide).
+2. Add the **Custom** dashboard service below and run it. Schedule it after the
+   Trino service, so the tables lineage points to exist.
 
 ## Configuration
 
@@ -175,6 +196,22 @@ OpenMetadata's own connectors do. A read that fails deletes nothing. When an
 item comes back in Baleia, the next run restores it. Set the pipeline's
 `markDeletedDataModels` to `false` to keep everything.
 
+## Limitations
+
+- **Data model type.** OpenMetadata has no Baleia type yet, so data models use
+  a borrowed type (`LookMlView` by default). A native type is tracked upstream
+  ([maltzsama/baleia#1136](https://github.com/maltzsama/baleia/issues/1136)).
+- **What is exposed.** Semantic models and metrics only. Saved queries,
+  glossary, certification, owners and tags are not sent in this version.
+- **The key owner's view.** The catalog is what the BI key's owner can read in
+  the workspace. Content in a space the owner cannot read is not ingested.
+- **Lineage needs the Trino tables.** A table missing from the configured
+  Trino services is a warning, not a placeholder. Re-run after the Trino
+  ingestion.
+- **No column-level lineage.** Edges are between tables and entities.
+- **Connection options are plain strings** in OpenMetadata. Keep the BI key in
+  `BALEIA_BI_KEY`; a key typed in the UI is stored as entered.
+
 ## Errors and retries
 
 Requests that fail with HTTP 429, 502, 503 or 504, or that cannot connect, are
@@ -216,9 +253,15 @@ See [AGENTS.md](AGENTS.md) for the contribution workflow.
 
 ## Releasing
 
-Releases are cut by release-please from conventional commits on `main` after CI
-passes, and published to PyPI through **Trusted Publishing** (OIDC). No PyPI
-token is stored in this repository.
+release-please keeps a release pull request open with the next version and the
+changelog built from conventional commits on `main`. Merging it tags the
+release, creates the GitHub release and publishes the wheel and the sdist to
+PyPI through **Trusted Publishing** (OIDC, workflow `release.yml`, environment
+`pypi`). No PyPI token is stored in this repository.
+
+A version on PyPI can never be replaced, only yanked. Before merging a release
+pull request, check that the `Integration` workflow is green on `main` for every
+supported OpenMetadata release.
 
 ## License
 
