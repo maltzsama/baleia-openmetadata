@@ -1,0 +1,46 @@
+name: Integration
+
+# The connector against real OpenMetadata servers (#5): each supported release
+# is started from its pinned quickstart, and the suite runs the ingestion
+# workflow three times against a stand-in for Baleia's BI gateway. Heavyweight,
+# so it runs nightly and on demand, not on every pull request.
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  openmetadata:
+    name: OpenMetadata ${{ matrix.server }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - server: "2.0.9"
+            ingestion: "2.0.9.0"
+          - server: "2.1.0"
+            ingestion: "2.1.0.2"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v10.4.0
+        with:
+          python-version: "3.12"
+      - name: Start OpenMetadata ${{ matrix.server }}
+        run: echo "OPENMETADATA_URL=$(scripts/openmetadata.sh up ${{ matrix.server }})" >> "$GITHUB_ENV"
+      - name: Install
+        run: |
+          uv venv
+          uv pip install -e . "openmetadata-ingestion==${{ matrix.ingestion }}" --group test
+      - name: Integration suite
+        run: uv run --no-sync pytest tests/integration -v
+      - name: OpenMetadata logs on failure
+        if: failure()
+        run: docker compose -p baleia-om-it-$(echo ${{ matrix.server }} | tr . -) logs --tail=200 openmetadata-server || true
+      - name: Stop OpenMetadata
+        if: always()
+        run: scripts/openmetadata.sh down ${{ matrix.server }}
