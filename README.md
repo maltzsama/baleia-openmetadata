@@ -63,7 +63,7 @@ type.
 
 | baleia-openmetadata | OpenMetadata / `openmetadata-ingestion` | Python |
 |---|---|---|
-| unreleased | 2.0.x, 2.1.x | 3.10, 3.11 |
+| unreleased | 2.0.x, 2.1.x | 3.10, 3.11, 3.12 |
 
 The connector is tested against each supported `openmetadata-ingestion`
 release. Install the connector release that lists your OpenMetadata version.

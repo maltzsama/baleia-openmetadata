@@ -21,7 +21,9 @@ Trino connector through Baleia's BI gateway; never duplicate it here.
 
 Definition of done: lint, format check, tests and build pass. CI runs the
 tests against every supported `openmetadata-ingestion` release (2.0.x and
-2.1.x) on Python 3.10 and 3.11.
+2.1.x) on Python 3.10, 3.11 and 3.12: the versions those releases support
+(`requires-python = ">=3.10"`, tested upstream on 3.10 to 3.12). 3.12 is the
+version in OpenMetadata's official ingestion images, where the connector runs.
 
 ## Rules
 
