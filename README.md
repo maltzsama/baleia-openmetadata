@@ -63,10 +63,20 @@ type.
 
 | baleia-openmetadata | OpenMetadata / `openmetadata-ingestion` | Python |
 |---|---|---|
-| unreleased | 2.0.x, 2.1.x | 3.10, 3.11 |
+| unreleased | 2.0.x, 2.1.x | 3.11, 3.12, 3.13, 3.14 |
 
 The connector is tested against each supported `openmetadata-ingestion`
 release. Install the connector release that lists your OpenMetadata version.
+
+The connector runs inside OpenMetadata's ingestion environment, so its Python
+range follows OpenMetadata's:
+
+- **3.12** is the reference version: OpenMetadata's official ingestion images
+  run it.
+- **3.11** is supported until its end of life (2027-10).
+- **3.13** and **3.14** are tested by this connector's CI, but not by
+  OpenMetadata upstream, which tests 3.10 to 3.12.
+- **3.10** is not supported: it reached its end of life on 2026-10-01.
 
 ## Installation
 

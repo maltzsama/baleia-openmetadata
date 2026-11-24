@@ -9,7 +9,7 @@ description = "OpenMetadata ingestion connector that discovers Baleia's semantic
 readme = "README.md"
 license = "Apache-2.0"
 license-files = ["LICENSE"]
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 authors = [{ name = "Baleia contributors" }]
 keywords = ["openmetadata", "baleia", "semantic-layer", "data-catalog", "connector"]
 classifiers = [
@@ -17,8 +17,10 @@ classifiers = [
   "Intended Audience :: Developers",
   "Operating System :: OS Independent",
   "Programming Language :: Python :: 3",
-  "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Programming Language :: Python :: 3.14",
   "Topic :: Database",
   "Typing :: Typed",
 ]
@@ -47,7 +49,7 @@ packages = ["src/baleia_openmetadata"]
 
 [tool.ruff]
 line-length = 100
-target-version = "py310"
+target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
