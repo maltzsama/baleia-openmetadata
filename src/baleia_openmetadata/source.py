@@ -40,7 +40,7 @@ from baleia_openmetadata.entities import (
     metric_request,
     model_metric_requests,
 )
-from baleia_openmetadata.lineage import TableResolver, edge_request, stale_edges
+from baleia_openmetadata.lineage import TableResolver, edge_request, forget_edge, stale_edges
 
 logger = ingestion_logger()
 
@@ -231,13 +231,13 @@ class BaleiaSource(Source):
             entity=target_type, entity_id=target, up_depth=1, down_depth=0
         )
         for edge in stale_edges(lineage, target, wanted):
+            stale = EntitiesEdge(
+                fromEntity=_reference(lineage, edge["fromEntity"]),
+                toEntity=EntityReference(id=target, type=target_type),
+            )
             try:
-                self.metadata.delete_lineage_edge(
-                    edge=EntitiesEdge(
-                        fromEntity=_reference(lineage, edge["fromEntity"]),
-                        toEntity=EntityReference(id=target, type=target_type),
-                    )
-                )
+                self.metadata.delete_lineage_edge(edge=stale)
+                forget_edge(self.metadata, stale.fromEntity, stale.toEntity)
             except Exception as err:
                 yield _failure(f"stale lineage edge into {target_type} {target}", err)
         for upstream in wanted:
