@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import UTC, datetime
+
 import pytest
 
 from baleia_openmetadata.client import (
@@ -134,9 +136,7 @@ def test_repeated_cursor_is_rejected(gateway: FakeGateway) -> None:
 
 
 def test_retry_after_http_date(gateway: FakeGateway) -> None:
-    from datetime import datetime, timezone
-
-    now = datetime(2026, 11, 24, 12, 0, 0, tzinfo=timezone.utc)
+    now = datetime(2026, 11, 24, 12, 0, 0, tzinfo=UTC)
     replies = [(503, {"Retry-After": "Tue, 24 Nov 2026 12:00:04 GMT"}, {}), (200, {}, SUMMARY)]
     gateway.route("/baleia/v1/semantic", lambda _params: replies.pop(0))
     sleeps: list[float] = []

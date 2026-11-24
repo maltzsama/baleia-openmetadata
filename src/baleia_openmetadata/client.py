@@ -10,7 +10,7 @@ from __future__ import annotations
 import contextlib
 import time
 from collections.abc import Callable, Iterator
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from typing import Any
 
@@ -55,7 +55,7 @@ class BaleiaClient:
         config: BaleiaConfig,
         session: requests.Session | None = None,
         sleep: Callable[[float], None] = time.sleep,
-        now: Callable[[], datetime] = lambda: datetime.now(timezone.utc),
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self._config = config
         self._session = session or requests.Session()
@@ -170,6 +170,6 @@ def _retry_after_seconds(value: str, now: datetime) -> float | None:
     with contextlib.suppress(TypeError, ValueError, IndexError):
         when = parsedate_to_datetime(value)
         if when.tzinfo is None:
-            when = when.replace(tzinfo=timezone.utc)
+            when = when.replace(tzinfo=UTC)
         return (when - now).total_seconds()
     return None
