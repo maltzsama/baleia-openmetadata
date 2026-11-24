@@ -103,3 +103,29 @@ def stale_edges(
             continue
         out.append(edge)
     return out
+
+
+def forget_edge(metadata: OpenMetadata, from_ref: EntityReference, to_ref: EntityReference) -> None:
+    """Drops a deleted edge from the OpenMetadata client's edge cache.
+
+    ``add_lineage`` looks edges up through a cache that ``delete_lineage_edge``
+    does not invalidate: per client in 2.1, per process in 2.0. Without this, an
+    edge deleted and added again in the same process would be patched instead
+    of created, and stay deleted. Best effort: the cache is an implementation
+    detail, found by capability rather than by version.
+    """
+    try:
+        key = metadata._lineage_edge_cache_key(from_ref, to_ref)
+    except Exception:
+        return
+    caches = [getattr(metadata, "_lineage_edge_cache", None)]
+    try:
+        from metadata.ingestion.ometa.mixins import lineage_mixin
+
+        caches.append(getattr(lineage_mixin, "search_cache", None))
+    except ImportError:
+        pass
+    for cache in caches:
+        store = getattr(cache, "_cache", None)
+        if isinstance(store, dict):
+            store.pop(key, None)

@@ -82,3 +82,38 @@ def test_stale_edges_only_touch_owned_edges() -> None:
     }
     assert [e["fromEntity"] for e in stale_edges(lineage, "t", ["keep"])] == ["gone"]
     assert stale_edges(None, "t", []) == []
+
+
+def test_forget_edge_clears_client_and_module_caches(monkeypatch) -> None:
+    from collections import OrderedDict
+
+    from metadata.generated.schema.type.entityReference import EntityReference
+
+    from baleia_openmetadata.lineage import forget_edge
+
+    class Cache:
+        def __init__(self) -> None:
+            self._cache = OrderedDict({"k": 1, "other": 2})
+
+    client_cache, module_cache = Cache(), Cache()
+    metadata = MagicMock()
+    metadata._lineage_edge_cache_key.return_value = "k"
+    metadata._lineage_edge_cache = client_cache
+    from metadata.ingestion.ometa.mixins import lineage_mixin
+
+    monkeypatch.setattr(lineage_mixin, "search_cache", module_cache, raising=False)
+    ref = EntityReference(id="a8a6d9f0-1111-4b3c-9d1e-000000000001", type="table")
+    forget_edge(metadata, ref, ref)
+    assert list(client_cache._cache) == ["other"]
+    assert list(module_cache._cache) == ["other"]
+
+
+def test_forget_edge_without_a_cache_is_harmless() -> None:
+    from metadata.generated.schema.type.entityReference import EntityReference
+
+    from baleia_openmetadata.lineage import forget_edge
+
+    metadata = MagicMock()
+    metadata._lineage_edge_cache_key.side_effect = AttributeError
+    ref = EntityReference(id="a8a6d9f0-1111-4b3c-9d1e-000000000001", type="table")
+    forget_edge(metadata, ref, ref)

@@ -192,6 +192,26 @@ uv run --no-sync pytest
 uv run --no-sync ruff check . && uv run --no-sync ruff format --check .
 ```
 
+### Integration suite
+
+`tests/integration` runs the connector against a real OpenMetadata server: it
+creates a Trino table standing in for the Trino connector's, serves a recorded
+semantic catalog from a local stand-in for Baleia's gateway, and runs the
+ingestion workflow three times (full catalog, items removed, items back),
+checking the data models, metrics, lineage, stale edges and soft deletes
+through OpenMetadata's API. It is skipped unless `OPENMETADATA_URL` is set.
+
+```sh
+export OPENMETADATA_URL="$(scripts/openmetadata.sh up 2.1.0)"   # or 2.0.9
+uv pip install "openmetadata-ingestion==2.1.0.2"                # match the server
+uv run --no-sync pytest tests/integration -v
+scripts/openmetadata.sh down 2.1.0
+```
+
+The `Integration` workflow runs it nightly and on demand against every
+supported release. The end-to-end check against a real Baleia lives in
+Baleia's repository.
+
 See [AGENTS.md](AGENTS.md) for the contribution workflow.
 
 ## Releasing

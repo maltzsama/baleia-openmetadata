@@ -18,6 +18,7 @@ Trino connector through Baleia's BI gateway; never duplicate it here.
 | `uv run --no-sync ruff check .` | Lint. |
 | `uv run --no-sync ruff format --check .` | Check formatting. |
 | `uv build && uvx twine check --strict dist/*` | Build and check the distribution. |
+| `OPENMETADATA_URL="$(scripts/openmetadata.sh up 2.1.0)" uv run --no-sync pytest tests/integration` | Integration suite against a real OpenMetadata (match `openmetadata-ingestion` to the server; `scripts/openmetadata.sh down 2.1.0` afterwards). Nightly in the `Integration` workflow. |
 
 Definition of done: lint, format check, tests and build pass. CI runs the
 tests against every supported `openmetadata-ingestion` release (2.0.x and
