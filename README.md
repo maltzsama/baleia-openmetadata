@@ -87,7 +87,8 @@ replace it. Outside the image, install `baleia-openmetadata[ingestion]`.
 ## Configuration
 
 In OpenMetadata, add a service under **Dashboard Services → Add New Service →
-Custom**, one per Baleia workspace, with:
+Custom**, one per Baleia workspace. The service name must not contain `__`,
+which separates the parts of metric names. Configure:
 
 - **Source Python Class Name**: `baleia_openmetadata.source.BaleiaSource`
 - **Connection Options**:
@@ -135,6 +136,34 @@ release. Set `dataModelType` to any other value of OpenMetadata's
 
 A model or metric that cannot be mapped is reported as an error in the run
 status and the rest of the run continues.
+
+## Lineage
+
+Each run links:
+
+- every physical table a model reads → the model's data model;
+- every physical table a standalone metric reads → the metric;
+- a model's data model → each metric defined in it.
+
+Baleia names a source table `catalog.schema.table` as the BI gateway's engine
+names it, which is how OpenMetadata's Trino connector ingests it through the
+gateway. The connector looks it up as `<service>.<catalog>.<schema>.<table>` in
+each service of `trinoServiceNames`. A table found in no service, or in more
+than one, is reported as a warning and skipped: the connector never guesses
+and never creates a table. Run the Trino connector before this one so the
+tables exist.
+
+Edges written by this connector are marked with the description `Baleia
+semantic catalog`. When Baleia stops reporting a dependency, the next run
+removes the marked edge; edges added by anyone else are never touched.
+
+## Deleted items
+
+After a complete read of the catalog, data models of the service and metrics
+named `<service>__…` that Baleia no longer reports are **soft-deleted**, like
+OpenMetadata's own connectors do. A read that fails deletes nothing. When an
+item comes back in Baleia, the next run restores it. Set the pipeline's
+`markDeletedDataModels` to `false` to keep everything.
 
 ## Errors and retries
 
