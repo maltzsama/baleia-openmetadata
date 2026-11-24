@@ -6,13 +6,16 @@ Register it under Dashboard Services > Custom with the source Python class
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+import traceback
+from collections.abc import Callable, Iterable
 from typing import Any
 
+from metadata.generated.schema.entity.data.dashboardDataModel import DataModelType
 from metadata.generated.schema.entity.services.connections.dashboard import (
     customDashboardConnection,
 )
 from metadata.generated.schema.entity.services.dashboardService import DashboardService
+from metadata.generated.schema.entity.services.ingestionPipelines.status import StackTraceError
 from metadata.generated.schema.metadataIngestion.workflow import Source as WorkflowSource
 from metadata.ingestion.api.models import Either
 from metadata.ingestion.api.steps import InvalidSourceException, Source
@@ -21,6 +24,7 @@ from metadata.utils.logger import ingestion_logger
 
 from baleia_openmetadata.client import BaleiaClient
 from baleia_openmetadata.config import BaleiaConfig, ConfigError
+from baleia_openmetadata.entities import data_model_request, metric_request, model_metric_requests
 
 logger = ingestion_logger()
 
@@ -49,6 +53,13 @@ class BaleiaSource(Source):
             self.baleia = BaleiaConfig.from_options(options.root if options else None)
         except ConfigError as err:
             raise InvalidSourceException(f"Invalid Baleia connection options: {err}") from err
+        try:
+            self.data_model_type = DataModelType(self.baleia.data_model_type)
+        except ValueError as err:
+            raise InvalidSourceException(
+                f"Invalid Baleia connection options: dataModelType {self.baleia.data_model_type!r} "
+                "is not an OpenMetadata data model type"
+            ) from err
         self.client = client or BaleiaClient(self.baleia)
         # The service is registered without the BI key: connection options are
         # stored as plain strings, not as secrets. The key stays in memory.
@@ -78,17 +89,37 @@ class BaleiaSource(Source):
         """Checks the gateway is reachable, the key is accepted and the contract is supported."""
         self.client.summary()
 
+    @property
+    def service_name(self) -> str:
+        return self.config.serviceName
+
     def _iter(self, *_: Any, **__: Any) -> Iterable[Either]:
         summary = self.client.summary()
         workspace = summary.get("workspace") or {}
+        project = workspace.get("name") or workspace.get("id")
         logger.info(
             "Baleia workspace %s: %s models, %s metrics",
-            workspace.get("name") or workspace.get("id"),
+            project,
             summary.get("models"),
             summary.get("metrics"),
         )
-        # Data models, metrics and lineage are added by the following issues.
-        yield from ()
+        service = self.service_name
+        for model in self.client.models():
+            yield _either(
+                f"data model {model.get('slug')}",
+                lambda m=model: data_model_request(m, service, self.data_model_type, project),
+            )
+            try:
+                metric_requests = model_metric_requests(model, service)
+            except Exception as err:
+                yield _failure(f"metrics of model {model.get('slug')}", err)
+                continue
+            for request in metric_requests:
+                yield Either(right=request)
+        for metric in self.client.metrics():
+            yield _either(
+                f"metric {metric.get('slug')}", lambda m=metric: metric_request(m, service)
+            )
 
     def close(self) -> None:
         self.client.close()
@@ -101,3 +132,21 @@ def _without_bi_key(config: WorkflowSource) -> WorkflowSource:
     if options is not None and options.root is not None:
         options.root.pop("biKey", None)
     return safe
+
+
+def _either(name: str, build: Callable[[], Any]) -> Either:
+    """Builds one request; a failure becomes a reported error, not a stopped run."""
+    try:
+        return Either(right=build())
+    except Exception as err:
+        return _failure(name, err)
+
+
+def _failure(name: str, err: Exception) -> Either:
+    return Either(
+        left=StackTraceError(
+            name=name,
+            error=f"Cannot map Baleia {name}: {err}",
+            stackTrace=traceback.format_exc(),
+        )
+    )

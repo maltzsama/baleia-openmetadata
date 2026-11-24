@@ -18,6 +18,12 @@ BI_KEY_ENV = "BALEIA_BI_KEY"
 
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
+# The OpenMetadata data model type used for Baleia models until OpenMetadata
+# ships a Baleia type: a LookML view is a semantic model (dimensions and
+# measures over a table or SQL), and the value exists in every supported
+# OpenMetadata release.
+DEFAULT_DATA_MODEL_TYPE = "LookMlView"
+
 
 class ConfigError(ValueError):
     """The connection options are missing or invalid."""
@@ -48,6 +54,7 @@ class BaleiaConfig:
     trino_services: tuple[str, ...]
     verify_tls: bool = True
     timeout_seconds: float = DEFAULT_TIMEOUT_SECONDS
+    data_model_type: str = DEFAULT_DATA_MODEL_TYPE
 
     @classmethod
     def from_options(
@@ -66,6 +73,8 @@ class BaleiaConfig:
           networks only; the BI key is a password).
         - ``verifyTls``: ``false`` to skip certificate verification (tests only).
         - ``timeoutSeconds``: request timeout, default 30.
+        - ``dataModelType``: the OpenMetadata data model type of Baleia models,
+          default ``LookMlView``.
         """
         options = dict(options or {})
         env = os.environ if env is None else env
@@ -116,4 +125,5 @@ class BaleiaConfig:
             trino_services=services,
             verify_tls=_truthy(options.get("verifyTls"), default=True),
             timeout_seconds=timeout,
+            data_model_type=(options.get("dataModelType") or "").strip() or DEFAULT_DATA_MODEL_TYPE,
         )
